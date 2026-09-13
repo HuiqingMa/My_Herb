@@ -1,10 +1,13 @@
-HTML
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>中药日常库存管理</title>
+  <title>中药日常库存与箱位管理</title>
+
+  <!-- iOS App Icon: 存放在同级目录并命名为 apple-touch-icon.png 即可 -->
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
   <style>
     :root {
       --primary: #1b4332;
@@ -161,7 +164,6 @@ HTML
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      position: relative;
     }
     .card.empty { border-color: #ffb703; background: #fffdf5; }
     .card.low { border-color: var(--danger); background: #fff5f5; }
@@ -211,7 +213,7 @@ HTML
 <div class="container">
   <header>
     <h1>🌿 中药日常库存与箱位管理</h1>
-    <p>每日扣减 · 存放箱号定位 · 进货入库</p>
+    <p>每日划药扣减 · 箱位精准检索 · 库存预警线: 50g</p>
   </header>
 
   <!-- 每日扣减/入库面板 -->
@@ -223,7 +225,7 @@ HTML
         <button id="mRestock" class="mode-btn" onclick="setMode('restock')">进货入库 (+)</button>
       </div>
     </div>
-    <textarea id="batchText" placeholder="支持任意格式，例如连成一行：&#10;龙骨15, 牡蛎20g, 白芍10, 炙甘草6&#10;系统会自动提示药材所在的箱号"></textarea>
+    <textarea id="batchText" placeholder="支持任意格式，例如连成一行：&#10;龙骨15, 牡蛎20g, 白芍10, 炙甘草6&#10;提交后会自动提示对应的存放箱号"></textarea>
     <div class="btn-group">
       <button class="btn btn-primary" id="submitBtn" onclick="runBatch()">执行扣减</button>
       <button class="btn btn-secondary" onclick="document.getElementById('batchText').value=''">清空</button>
@@ -231,14 +233,15 @@ HTML
     <div id="logOutput" class="log-box"></div>
   </section>
 
-  <!-- 自主导入面板 (支持3列复制) -->
+  <!-- 自主导入面板 (支持3列粘贴: Box, Name, Weight) -->
   <section class="panel" id="importPanel" style="display:none; border: 2px solid var(--import);">
     <div class="panel-header">
       <strong style="color: var(--import);">📥 自主导入 / 重新设置库存与箱号</strong>
       <button onclick="toggleImportPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.1rem; font-weight:bold;">✕</button>
     </div>
     <p style="font-size:0.82rem; color:#555; margin: 0 0 8px 0; line-height: 1.4;">
-      <strong>支持直接从 Excel 复制 3 列粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
+      <strong>直接从 Excel 复制 3 列粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
+      统一默认警戒线为 50g，无需单独导入预警列。<br/>
       示例格式：<code>1 龙骨 450</code> 或 <code>6 茯苓 256</code>
     </p>
     <textarea id="importText" style="height:140px;" placeholder="直接粘贴 Excel 选中的 3 列：&#10;1  龙骨  450&#10;1  牡蛎  860&#10;6  茯苓  256&#10;4  北柴胡  80"></textarea>
@@ -267,6 +270,7 @@ HTML
     </div>
     <button class="action-btn" onclick="toggleImportPanel()">📥 自主导入</button>
     <button class="action-btn" onclick="exportCSV()">导出备份</button>
+    <button class="action-btn" onclick="exportTXT()">导出 TXT</button>
   </div>
 
   <!-- 药材卡片列表 -->
@@ -274,6 +278,9 @@ HTML
 </div>
 
 <script>
+  // 全局统一警戒线：50克
+  const STOCK_ALERT_LIMIT = 50;
+
   let mode = 'deduct';
   let herbs = JSON.parse(localStorage.getItem('tcm_inventory')) || [];
 
@@ -306,7 +313,6 @@ HTML
       .filter(item => item.length > 0);
   }
 
-  // 强大的3列与2列自适应解析器
   function parseImportToken(token) {
     let clean = token.trim();
     if (!clean) return null;
@@ -316,19 +322,15 @@ HTML
     const parts = clean.split(' ');
 
     if (parts.length >= 3) {
-      // 匹配：[Box号] [药名] [克重] (例如: "1 龙骨 450" 或 "A-1 当归 100g")
       const box = parts[0].trim();
       const name = parts[1].trim();
       const numMatch = parts[2].match(/^(\d+(?:\.\d+)?)/);
       const val = numMatch ? parseFloat(numMatch[1]) : 0;
       if (name) return { box, name, val };
     } else if (parts.length === 2) {
-      // 如果只有两列
       if (/^\d+$/.test(parts[0])) {
-        // 第一列是纯数字，第二列是药名 (例如: "1 龙骨" -> 默认0克)
         return { box: parts[0], name: parts[1], val: 0 };
       } else {
-        // 第一列是药名，第二列是克重 (例如: "龙骨 450")
         const numMatch = parts[1].match(/^(\d+(?:\.\d+)?)/);
         const val = numMatch ? parseFloat(numMatch[1]) : 0;
         return { box: "-", name: parts[0], val };
@@ -340,7 +342,6 @@ HTML
     return null;
   }
 
-  // 日常扣减单项识别
   function parseDeductToken(token) {
     let clean = token.trim();
     if (!clean) return null;
@@ -362,7 +363,7 @@ HTML
     tokens.forEach(tok => {
       const res = parseImportToken(tok);
       if (res && res.name) {
-        importedItems.push({ box: res.box, name: res.name, stock: res.val, min: 100 });
+        importedItems.push({ box: res.box, name: res.name, stock: res.val });
       }
     });
 
@@ -372,7 +373,7 @@ HTML
     }
 
     if (isOverwrite) {
-      if (!confirm(`成功解析出 ${importedItems.length} 味药材。\n确定要【清空现有所有数据】，重新建立带箱号的库存吗？`)) return;
+      if (!confirm(`成功解析出 ${importedItems.length} 味药材。\n确定要【清空现有所有数据】，重新建立库存吗？`)) return;
       herbs = importedItems;
     } else {
       let added = 0, updated = 0;
@@ -405,7 +406,7 @@ HTML
       tokens.forEach(tok => {
         const res = parseImportToken(tok);
         if (res && res.name) {
-          loaded.push({ box: res.box, name: res.name, stock: res.val, min: 30 });
+          loaded.push({ box: res.box, name: res.name, stock: res.val });
         }
       });
       if (loaded.length > 0) {
@@ -445,7 +446,7 @@ HTML
         matchedCount++;
       } else {
         if (mode === 'restock') {
-          herbs.push({ box: "-", name: parsed.name, stock: parsed.val, min: 30 });
+          herbs.push({ box: "-", name: parsed.name, stock: parsed.val });
           logs.push(`✨ 新增药材【${parsed.name}】+${parsed.val}g`);
           matchedCount++;
         } else {
@@ -499,7 +500,6 @@ HTML
       return;
     }
 
-    // 支持既搜药名，也搜箱号（比如直接搜 "1" 列出 1 号箱所有药）
     const list = herbs
       .filter(h => {
         if (!q) return true;
@@ -510,11 +510,10 @@ HTML
         return herbClean.includes(queryClean) || boxClean === queryClean || (boxClean + '号') === queryClean;
       })
       .sort((a, b) => {
-        // 先按箱号排序，箱号相同的按低库存浮动
         if (a.stock === 0 && b.stock !== 0) return -1;
         if (b.stock === 0 && a.stock !== 0) return 1;
-        if (a.stock <= a.min && b.stock > b.min) return -1;
-        if (b.stock <= b.min && a.stock > a.min) return 1;
+        if (a.stock <= STOCK_ALERT_LIMIT && b.stock > STOCK_ALERT_LIMIT) return -1;
+        if (b.stock <= STOCK_ALERT_LIMIT && a.stock > STOCK_ALERT_LIMIT) return 1;
         return 0;
       });
 
@@ -528,7 +527,7 @@ HTML
 
     list.forEach(h => {
       const isEmpty = h.stock === 0;
-      const isLow = h.stock > 0 && h.stock <= h.min;
+      const isLow = h.stock > 0 && h.stock <= STOCK_ALERT_LIMIT;
       const card = document.createElement('div');
       card.className = `card ${isEmpty ? 'empty' : isLow ? 'low' : ''}`;
       
@@ -557,13 +556,54 @@ HTML
   }
 
   function exportCSV() {
-    let csv = "\uFEFF箱号,药材名称,库存(g),警戒低值(g)\n";
-    herbs.forEach(h => { csv += `"${h.box || '-'}","${h.name}",${h.stock},${h.min}\n`; });
+    let csv = "\uFEFF箱号,药材名称,当前库存(g),状态\n";
+    herbs.forEach(h => {
+      let status = "正常";
+      if (h.stock === 0) status = "缺药";
+      else if (h.stock <= STOCK_ALERT_LIMIT) status = "不足";
+      csv += `"${h.box || '-'}","${h.name}",${h.stock},"${status}"\n`;
+    });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `中药库存与箱号_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportTXT() {
+    if (!herbs || herbs.length === 0) {
+      alert("当前库存为空，无法导出！");
+      return;
+    }
+
+    let txt = "\uFEFF";
+    txt += `中药库存清单 (${new Date().toLocaleDateString()})\n`;
+    txt += "----------------------------------------\n";
+    txt += "箱号\t药材名称\t当前库存(g)\t状态\n";
+    txt += "----------------------------------------\n";
+
+    herbs.forEach(h => {
+      let status = "正常";
+      if (h.stock === 0) status = "缺药";
+      else if (h.stock <= STOCK_ALERT_LIMIT) status = "不足";
+
+      const box = h.box && h.box !== '-' ? `${h.box}号箱` : '-';
+      txt += `${box}\t${h.name}\t${h.stock}g\t[${status}]\n`;
+    });
+
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `中药库存_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   const searchInput = document.getElementById('filterInput');
