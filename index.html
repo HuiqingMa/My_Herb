@@ -1,0 +1,577 @@
+HTML
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>中药日常库存管理</title>
+  <style>
+    :root {
+      --primary: #1b4332;
+      --accent: #2d6a4f;
+      --card-bg: #ffffff;
+      --danger: #d90429;
+      --restock: #1976d2;
+      --import: #6f42c1;
+      --bg: #f4f6f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 12px;
+      background: var(--bg);
+      color: #212529;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 12px; }
+    header h1 { margin: 0; color: var(--primary); font-size: 1.5rem; }
+    header p { margin: 4px 0 0; color: #666; font-size: 0.85rem; }
+
+    .panel {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .mode-switch {
+      display: flex;
+      background: #e9ecef;
+      padding: 2px;
+      border-radius: 8px;
+    }
+    .mode-btn {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: #495057;
+    }
+    .mode-btn.active-deduct { background: var(--danger); color: white; }
+    .mode-btn.active-restock { background: var(--restock); color: white; }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      border: 1px solid #ced4da;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--accent); flex: 1; }
+    .btn-secondary { background: #6c757d; }
+    .btn-import { background: var(--import); }
+
+    .search-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+    }
+    .search-wrapper input {
+      width: 100%;
+      padding: 9px 34px 9px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .search-wrapper input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(45, 106, 79, 0.2);
+    }
+    .clear-search {
+      position: absolute;
+      right: 8px;
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 4px;
+      display: none;
+    }
+    .search-row button.action-btn {
+      padding: 9px 12px;
+      border: 1px solid #ced4da;
+      background: white;
+      border-radius: 8px;
+      font-weight: 600;
+      color: #495057;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .log-box {
+      background: #e8f5e9;
+      border: 1px solid #c8e6c9;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+      display: none;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 8px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .card.empty { border-color: #ffb703; background: #fffdf5; }
+    .card.low { border-color: var(--danger); background: #fff5f5; }
+    .herb-name { font-size: 1.05rem; font-weight: 700; color: #111; }
+    .herb-stock { font-size: 1.25rem; font-weight: 800; color: var(--primary); margin: 4px 0; }
+    .card.empty .herb-stock, .card.low .herb-stock { color: var(--danger); }
+    
+    .badge-box {
+      font-size: 0.75rem;
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge { font-size: 0.75rem; font-weight: 600; padding: 2px 4px; border-radius: 4px; margin-left: 4px; }
+    .badge-empty { background: #ffe3e3; color: #c92a2a; }
+    .badge-low { background: #fff3bf; color: #d9480f; }
+
+    .quick-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .quick-row input {
+      width: 55px;
+      padding: 4px;
+      font-size: 0.85rem;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+    }
+    .quick-row button {
+      flex: 1;
+      padding: 4px;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #e9ecef;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🌿 中药日常库存与箱位管理</h1>
+    <p>每日扣减 · 存放箱号定位 · 进货入库</p>
+  </header>
+
+  <!-- 每日扣减/入库面板 -->
+  <section class="panel">
+    <div class="panel-header">
+      <strong id="batchTitle" style="color: var(--accent);">⚡ 每日划药扣减 (支持连行逗号隔开)</strong>
+      <div class="mode-switch">
+        <button id="mDeduct" class="mode-btn active-deduct" onclick="setMode('deduct')">使用扣减 (-)</button>
+        <button id="mRestock" class="mode-btn" onclick="setMode('restock')">进货入库 (+)</button>
+      </div>
+    </div>
+    <textarea id="batchText" placeholder="支持任意格式，例如连成一行：&#10;龙骨15, 牡蛎20g, 白芍10, 炙甘草6&#10;系统会自动提示药材所在的箱号"></textarea>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="submitBtn" onclick="runBatch()">执行扣减</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('batchText').value=''">清空</button>
+    </div>
+    <div id="logOutput" class="log-box"></div>
+  </section>
+
+  <!-- 自主导入面板 (支持3列复制) -->
+  <section class="panel" id="importPanel" style="display:none; border: 2px solid var(--import);">
+    <div class="panel-header">
+      <strong style="color: var(--import);">📥 自主导入 / 重新设置库存与箱号</strong>
+      <button onclick="toggleImportPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.1rem; font-weight:bold;">✕</button>
+    </div>
+    <p style="font-size:0.82rem; color:#555; margin: 0 0 8px 0; line-height: 1.4;">
+      <strong>支持直接从 Excel 复制 3 列粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
+      示例格式：<code>1 龙骨 450</code> 或 <code>6 茯苓 256</code>
+    </p>
+    <textarea id="importText" style="height:140px;" placeholder="直接粘贴 Excel 选中的 3 列：&#10;1  龙骨  450&#10;1  牡蛎  860&#10;6  茯苓  256&#10;4  北柴胡  80"></textarea>
+    
+    <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+      <button class="btn btn-import" onclick="executeTextImport(false)">补充/更新现有药材</button>
+      <button class="btn btn-secondary" style="background:#b02a37;" onclick="executeTextImport(true)">全部清空并重新导入</button>
+      <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleFileImport(event)" />
+      <button class="btn" style="background:#495057;" onclick="document.getElementById('csvFileInput').click()">选择 CSV 文件导入</button>
+    </div>
+  </section>
+
+  <!-- 工具栏 -->
+  <div class="search-row">
+    <div class="search-wrapper">
+      <input 
+        type="text" 
+        id="filterInput" 
+        placeholder="查找药材名称 或 输入箱号(如: 1)..." 
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button class="clear-search" id="clearBtn" onclick="clearSearch()">✕</button>
+    </div>
+    <button class="action-btn" onclick="toggleImportPanel()">📥 自主导入</button>
+    <button class="action-btn" onclick="exportCSV()">导出备份</button>
+  </div>
+
+  <!-- 药材卡片列表 -->
+  <div class="grid" id="cardGrid"></div>
+</div>
+
+<script>
+  let mode = 'deduct';
+  let herbs = JSON.parse(localStorage.getItem('tcm_inventory')) || [];
+
+  function persist() {
+    localStorage.setItem('tcm_inventory', JSON.stringify(herbs));
+    render();
+  }
+
+  function toggleImportPanel() {
+    const p = document.getElementById('importPanel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function setMode(m) {
+    mode = m;
+    const isDeduct = m === 'deduct';
+    document.getElementById('mDeduct').className = `mode-btn ${isDeduct ? 'active-deduct' : ''}`;
+    document.getElementById('mRestock').className = `mode-btn ${!isDeduct ? 'active-restock' : ''}`;
+    document.getElementById('batchTitle').textContent = isDeduct ? '⚡ 每日划药扣减 (支持连行逗号隔开)' : '📦 进货入库 (增加克重)';
+    document.getElementById('batchTitle').style.color = isDeduct ? 'var(--accent)' : 'var(--restock)';
+    document.getElementById('submitBtn').textContent = isDeduct ? '执行扣减' : '确认入库';
+    document.getElementById('submitBtn').style.background = isDeduct ? 'var(--accent)' : 'var(--restock)';
+  }
+
+  function splitIntoItems(rawText) {
+    if (!rawText) return [];
+    return rawText
+      .split(/[\n\r,，、;；]+/g)
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+  }
+
+  // 强大的3列与2列自适应解析器
+  function parseImportToken(token) {
+    let clean = token.trim();
+    if (!clean) return null;
+    if (/^(box|herb|药材|箱号|品名|重量|weight|stock|库存)/i.test(clean)) return null;
+
+    clean = clean.replace(/[\t,，:：\-—]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const parts = clean.split(' ');
+
+    if (parts.length >= 3) {
+      // 匹配：[Box号] [药名] [克重] (例如: "1 龙骨 450" 或 "A-1 当归 100g")
+      const box = parts[0].trim();
+      const name = parts[1].trim();
+      const numMatch = parts[2].match(/^(\d+(?:\.\d+)?)/);
+      const val = numMatch ? parseFloat(numMatch[1]) : 0;
+      if (name) return { box, name, val };
+    } else if (parts.length === 2) {
+      // 如果只有两列
+      if (/^\d+$/.test(parts[0])) {
+        // 第一列是纯数字，第二列是药名 (例如: "1 龙骨" -> 默认0克)
+        return { box: parts[0], name: parts[1], val: 0 };
+      } else {
+        // 第一列是药名，第二列是克重 (例如: "龙骨 450")
+        const numMatch = parts[1].match(/^(\d+(?:\.\d+)?)/);
+        const val = numMatch ? parseFloat(numMatch[1]) : 0;
+        return { box: "-", name: parts[0], val };
+      }
+    } else if (parts.length === 1) {
+      const name = parts[0].replace(/[0-9g克oz]/gi, '').trim();
+      if (name) return { box: "-", name, val: 0 };
+    }
+    return null;
+  }
+
+  // 日常扣减单项识别
+  function parseDeductToken(token) {
+    let clean = token.trim();
+    if (!clean) return null;
+    clean = clean.replace(/[:：\-—]+/g, ' ').trim();
+    const m = clean.match(/^([\u4e00-\u9fa5a-zA-Z\(\)（）\s]+?)\s*(\d+(?:\.\d+)?)\s*(?:g|克|oz)?$/i);
+    if (m) {
+      const name = m[1].replace(/\s+/g, '');
+      const val = parseFloat(m[2]);
+      if (name && !isNaN(val)) return { name, val };
+    }
+    return null;
+  }
+
+  function executeTextImport(isOverwrite) {
+    const rawText = document.getElementById('importText').value;
+    const tokens = splitIntoItems(rawText);
+    let importedItems = [];
+
+    tokens.forEach(tok => {
+      const res = parseImportToken(tok);
+      if (res && res.name) {
+        importedItems.push({ box: res.box, name: res.name, stock: res.val, min: 100 });
+      }
+    });
+
+    if (importedItems.length === 0) {
+      alert("未能识别到有效数据！请确保包含药名和克数。");
+      return;
+    }
+
+    if (isOverwrite) {
+      if (!confirm(`成功解析出 ${importedItems.length} 味药材。\n确定要【清空现有所有数据】，重新建立带箱号的库存吗？`)) return;
+      herbs = importedItems;
+    } else {
+      let added = 0, updated = 0;
+      importedItems.forEach(item => {
+        let existing = herbs.find(h => h.name === item.name);
+        if (existing) {
+          existing.stock = item.stock;
+          if (item.box !== "-") existing.box = item.box;
+          updated++;
+        } else {
+          herbs.push(item);
+          added++;
+        }
+      });
+      alert(`导入完成：更新了 ${updated} 项，新添加了 ${added} 项。`);
+    }
+
+    persist();
+    document.getElementById('importText').value = '';
+    toggleImportPanel();
+  }
+
+  function handleFileImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const tokens = splitIntoItems(evt.target.result);
+      let loaded = [];
+      tokens.forEach(tok => {
+        const res = parseImportToken(tok);
+        if (res && res.name) {
+          loaded.push({ box: res.box, name: res.name, stock: res.val, min: 30 });
+        }
+      });
+      if (loaded.length > 0) {
+        if (confirm(`从文件中识别到 ${loaded.length} 项药材，是否替换当前全部库存？`)) {
+          herbs = loaded;
+          persist();
+          toggleImportPanel();
+        }
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function runBatch() {
+    const rawText = document.getElementById('batchText').value;
+    const tokens = splitIntoItems(rawText);
+    const log = document.getElementById('logOutput');
+    let matchedCount = 0;
+    let notFound = [];
+    let logs = [];
+
+    tokens.forEach(tok => {
+      const parsed = parseDeductToken(tok);
+      if (!parsed || parsed.val === 0) return;
+
+      let target = herbs.find(h => h.name === parsed.name) || herbs.find(h => h.name.includes(parsed.name));
+
+      if (target) {
+        const boxInfo = target.box && target.box !== '-' ? ` [${target.box}号箱]` : '';
+        if (mode === 'deduct') {
+          target.stock = Math.max(0, target.stock - parsed.val);
+          logs.push(`✓ 扣除【${target.name}】${parsed.val}g <strong>${boxInfo}</strong> (剩余: ${target.stock}g)`);
+        } else {
+          target.stock += parsed.val;
+          logs.push(`+ 进货【${target.name}】+${parsed.val}g <strong>${boxInfo}</strong> (现存: ${target.stock}g)`);
+        }
+        matchedCount++;
+      } else {
+        if (mode === 'restock') {
+          herbs.push({ box: "-", name: parsed.name, stock: parsed.val, min: 30 });
+          logs.push(`✨ 新增药材【${parsed.name}】+${parsed.val}g`);
+          matchedCount++;
+        } else {
+          notFound.push(`未匹配: ${tok}`);
+        }
+      }
+    });
+
+    persist();
+    log.style.display = 'block';
+    let summary = `<strong>成功处理 ${matchedCount} 味药。</strong><br/>`;
+    if (notFound.length) {
+      summary += `<span style="color:var(--danger);">${notFound.join(' | ')}</span><br/>`;
+    }
+    summary += `<details open style="margin-top:4px;"><summary>查看明细及药箱位置</summary>${logs.join('<br/>')}</details>`;
+    log.innerHTML = summary;
+  }
+
+  function manualAdjust(name, type) {
+    const input = document.getElementById(`adj-${name}`);
+    const val = parseFloat(input.value);
+    if (!isNaN(val) && val > 0) {
+      const h = herbs.find(item => item.name === name);
+      if (h) {
+        h.stock = type === 'add' ? (h.stock + val) : Math.max(0, h.stock - val);
+        input.value = '';
+        persist();
+      }
+    }
+  }
+
+  function clearSearch() {
+    const input = document.getElementById('filterInput');
+    input.value = '';
+    document.getElementById('clearBtn').style.display = 'none';
+    render();
+    input.focus();
+  }
+
+  function render() {
+    const grid = document.getElementById('cardGrid');
+    const rawQ = document.getElementById('filterInput').value;
+    const q = rawQ.trim().toLowerCase();
+    const clearBtn = document.getElementById('clearBtn');
+    
+    clearBtn.style.display = rawQ.length > 0 ? 'block' : 'none';
+    grid.innerHTML = '';
+
+    if (herbs.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color:#888;">当前库存为空，请点击上方“📥 自主导入”将 Excel 粘贴录入。</div>';
+      return;
+    }
+
+    // 支持既搜药名，也搜箱号（比如直接搜 "1" 列出 1 号箱所有药）
+    const list = herbs
+      .filter(h => {
+        if (!q) return true;
+        const herbClean = (h.name || '').toLowerCase().replace(/\s+/g, '');
+        const boxClean = (h.box || '').toString().toLowerCase();
+        const queryClean = q.replace(/\s+/g, '');
+
+        return herbClean.includes(queryClean) || boxClean === queryClean || (boxClean + '号') === queryClean;
+      })
+      .sort((a, b) => {
+        // 先按箱号排序，箱号相同的按低库存浮动
+        if (a.stock === 0 && b.stock !== 0) return -1;
+        if (b.stock === 0 && a.stock !== 0) return 1;
+        if (a.stock <= a.min && b.stock > b.min) return -1;
+        if (b.stock <= b.min && a.stock > a.min) return 1;
+        return 0;
+      });
+
+    if (list.length === 0) {
+      grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color:#888;">
+        未找到匹配 "<strong>${rawQ}</strong>" 的药材或箱号<br/>
+        <button onclick="clearSearch()" style="margin-top:8px; padding:4px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer;">清空搜索条件</button>
+      </div>`;
+      return;
+    }
+
+    list.forEach(h => {
+      const isEmpty = h.stock === 0;
+      const isLow = h.stock > 0 && h.stock <= h.min;
+      const card = document.createElement('div');
+      card.className = `card ${isEmpty ? 'empty' : isLow ? 'low' : ''}`;
+      
+      let tag = '';
+      if (isEmpty) tag = '<span class="badge badge-empty">缺药</span>';
+      else if (isLow) tag = '<span class="badge badge-low">不足</span>';
+
+      const boxLabel = (h.box && h.box !== '-') ? `<span class="badge-box">📦 ${h.box}号箱</span>` : '';
+
+      card.innerHTML = `
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="herb-name">${h.name}</span>
+            <div>${boxLabel}${tag}</div>
+          </div>
+          <div class="herb-stock">${h.stock} <small style="font-size:0.8rem; font-weight:normal;">g</small></div>
+        </div>
+        <div class="quick-row">
+          <input type="number" id="adj-${h.name}" placeholder="克数" />
+          <button onclick="manualAdjust('${h.name}', 'sub')">-用</button>
+          <button onclick="manualAdjust('${h.name}', 'add')" style="color:var(--restock);">+进</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  function exportCSV() {
+    let csv = "\uFEFF箱号,药材名称,库存(g),警戒低值(g)\n";
+    herbs.forEach(h => { csv += `"${h.box || '-'}","${h.name}",${h.stock},${h.min}\n`; });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `中药库存与箱号_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
+  const searchInput = document.getElementById('filterInput');
+  searchInput.addEventListener('input', render);
+  searchInput.addEventListener('compositionend', render);
+  searchInput.addEventListener('keyup', render);
+
+  render();
+</script>
+</body>
+</html>
