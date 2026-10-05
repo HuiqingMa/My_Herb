@@ -15,7 +15,6 @@
       --card-bg: #ffffff;
       --danger: #d90429;
       --restock: #1976d2;
-      --import: #6f42c1;
       --bg: #f4f6f5;
     }
     * { 
@@ -81,11 +80,11 @@
 
     textarea {
       width: 100%;
-      height: 110px;
+      height: 120px;
       border: 1px solid #ced4da;
       border-radius: 8px;
       padding: 8px;
-      font-size: 16px; /* 防止 iOS 聚焦放大页面 */
+      font-size: 16px; /* 防止 iOS 聚焦放大 */
       font-family: inherit;
     }
     .btn-group {
@@ -104,8 +103,6 @@
     }
     .btn-primary { background: var(--accent); flex: 1; }
     .btn-secondary { background: #6c757d; }
-    .btn-import { background: var(--import); }
-    .btn-danger { background: var(--danger); color: white; }
 
     /* 主工具栏 */
     .search-row {
@@ -156,7 +153,6 @@
       font-size: 0.85rem;
       white-space: nowrap;
     }
-    /* 显眼的红色全清空按钮 */
     .search-row button.action-btn.danger-btn-main {
       background: var(--danger);
       color: #ffffff;
@@ -280,7 +276,7 @@
     <p>每日划药扣减 · 直接点击箱号即可修改 · 低于 50g 自动预警</p>
   </header>
 
-  <!-- 每日扣减/入库面板 -->
+  <!-- 每日扣减/进货建库面板 -->
   <section class="panel">
     <div class="panel-header">
       <strong id="batchTitle" style="color: var(--accent);">⚡ 每日划药扣减 (支持连行逗号隔开)</strong>
@@ -302,29 +298,7 @@
     <div id="logOutput" class="log-box"></div>
   </section>
 
-  <!-- 导入/重置面板 -->
-  <section class="panel" id="importPanel" style="display:none; border: 2px solid var(--import);">
-    <div class="panel-header">
-      <strong style="color: var(--import);">📥 批量导入 / 重新建立库存</strong>
-      <button onclick="toggleImportPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.1rem; font-weight:bold;">✕</button>
-    </div>
-    <p style="font-size:0.82rem; color:#555; margin: 0 0 8px 0; line-height: 1.4;">
-      <strong>直接从 Excel 选中 3 列复制粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
-      统一预设警戒线为 50g。<br/>
-      示例格式：<code>1 龙骨 450</code> 或 <code>6 茯苓 256</code>
-    </p>
-    <textarea id="importText" style="height:130px;" placeholder="从 Excel 复制 3 列粘贴在此处：&#10;1  龙骨  450&#10;1  牡蛎  860&#10;6  茯苓  256&#10;4  北柴胡  80"></textarea>
-    
-    <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-      <button class="btn btn-import" onclick="executeTextImport(false)">补充/更新现有药材</button>
-      <button class="btn" style="background:#b02a37;" onclick="executeTextImport(true)">清空并载入输入框数据</button>
-      <button class="btn btn-danger" onclick="clearAllData()">🗑️ 全部清空数据</button>
-      <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleFileImport(event)" />
-      <button class="btn" style="background:#495057;" onclick="document.getElementById('csvFileInput').click()">选择 CSV 文件载入</button>
-    </div>
-  </section>
-
-  <!-- 主工具栏：红色清空按钮排在最前 -->
+  <!-- 主工具栏：仅保留全部清空与导出TXT -->
   <div class="search-row">
     <div class="search-wrapper">
       <input 
@@ -338,9 +312,7 @@
       />
       <button class="clear-search" id="clearBtn" onclick="clearSearch()">✕</button>
     </div>
-    <button class="action-btn danger-btn-main" onclick="clearAllData()">🗑️ 全部清空</button>
-    <button class="action-btn" onclick="toggleImportPanel()">📥 导入数据</button>
-    <button class="action-btn" onclick="exportCSV()">导出备份</button>
+    <button class="action-btn danger-btn-main" onclick="clearAllData()">🗑️ 全部清空数据</button>
     <button class="action-btn" onclick="exportTXT()">导出 TXT</button>
   </div>
 
@@ -373,31 +345,22 @@
     }
   }
 
-  // 全部清空库存
+  // 全部清空数据按钮
   function clearAllData() {
     if (herbs.length === 0) {
       alert("当前数据库已经是空的！");
       return;
     }
-    const confirmed = confirm("⚠ 警告：确定要彻底清空当前所有的中药库存吗？\n清空后不可恢复（建议先点击“导出备份”保存一份）。");
+    const confirmed = confirm("⚠ 警告：确定要彻底清空当前所有的中药库存吗？\n清空后不可恢复（建议先点击“导出 TXT”保存一份）。");
     if (confirmed) {
       herbs = [];
       localStorage.removeItem('tcm_inventory');
       document.getElementById('batchText').value = '';
       document.getElementById('logOutput').style.display = 'none';
+      setMode('restock'); // 自动切换到进货模式，方便直接粘贴录入建库
       render();
-
-      const panel = document.getElementById('importPanel');
-      panel.style.display = 'block';
-      const importBox = document.getElementById('importText');
-      importBox.value = '';
-      importBox.focus();
+      alert("✅ 已清空全部库存！已自动为你切换到【进货入库】模式，可直接粘贴 Excel 数据建库。");
     }
-  }
-
-  function toggleImportPanel() {
-    const p = document.getElementById('importPanel');
-    p.style.display = p.style.display === 'none' ? 'block' : 'none';
   }
 
   function setMode(m) {
@@ -416,15 +379,16 @@
       hint.innerHTML = '💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>';
       document.getElementById('batchText').placeholder = '例如输入：\n龙骨15, 牡蛎20g, 白芍10, 炙甘草6';
     } else {
-      document.getElementById('batchTitle').textContent = '📦 进货入库 (自动同步箱号)';
+      document.getElementById('batchTitle').textContent = '📦 进货入库 / 录入建库 (自动识别箱号)';
       document.getElementById('batchTitle').style.color = 'var(--restock)';
       document.getElementById('submitBtn').textContent = '确认入库/增加';
       document.getElementById('submitBtn').style.background = 'var(--restock)';
       hint.style.borderLeftColor = 'var(--restock)';
-      hint.innerHTML = '💡 <strong>进货格式：</strong><br/>' +
-        '• <strong>已有药材（保持原箱号）</strong>：直接输入 <code>茯苓 200g, 柴胡 100</code><br/>' +
-        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或直接点击下方卡片上的箱号修改）';
-      document.getElementById('batchText').placeholder = '例如输入：\n8号箱 丹参 250g, 茯苓 200, 2号 黄芪 300';
+      hint.innerHTML = '💡 <strong>进货与建库输入格式：</strong><br/>' +
+        '• <strong>Excel 直接粘贴（推荐建库）</strong>：直接复制 <code>箱号  药名  克数</code> 粘贴即可<br/>' +
+        '• <strong>进货已有药材</strong>：直接写 <code>茯苓 200g, 柴胡 100</code>（保留原本箱号）<br/>' +
+        '• <strong>新药或更换箱位</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或 <code>8 丹参 250</code>）';
+      document.getElementById('batchText').placeholder = '建库可直接粘贴 Excel 选中的 3 列：\n1  龙骨  450\n1  牡蛎  860\n6  茯苓  256\n\n或日常进货：\n8号箱 丹参 250g, 茯苓 200';
     }
   }
 
@@ -437,6 +401,7 @@
       .filter(item => item.length > 0);
   }
 
+  // 智能识别：支持 Excel 3列格式、带箱号格式、紧凑格式
   function parseHerbEntry(token) {
     let clean = token.trim();
     if (!clean) return null;
@@ -444,6 +409,7 @@
 
     let detectedBox = null;
 
+    // 优先匹配带“号/箱”字样的标记
     const boxMatch = clean.match(/(?:box\s*|箱\s*)?(\d+|[a-zA-Z]+)(?:号箱|号|\b箱)/i);
     if (boxMatch) {
       detectedBox = boxMatch[1];
@@ -454,6 +420,7 @@
     const parts = clean.split(' ');
 
     if (parts.length >= 3 && !detectedBox) {
+      // 匹配 Excel 粘贴：1 龙骨 450
       const box = parts[0].trim();
       const name = parts[1].trim();
       const numMatch = parts[2].match(/^(\d+(?:\.\d+)?)/);
@@ -474,71 +441,6 @@
       }
     }
     return null;
-  }
-
-  function executeTextImport(isOverwrite) {
-    const rawText = document.getElementById('importText').value;
-    const tokens = splitIntoItems(rawText);
-    let importedItems = [];
-
-    tokens.forEach(tok => {
-      const res = parseHerbEntry(tok);
-      if (res && res.name) {
-        importedItems.push({ box: res.box || "-", name: res.name, stock: res.val });
-      }
-    });
-
-    if (importedItems.length === 0) {
-      alert("未能识别到有效数据！请确保包含药名和克数。");
-      return;
-    }
-
-    if (isOverwrite) {
-      if (!confirm(`成功解析出 ${importedItems.length} 味药材。\n确定要【清空现有所有数据】，重新建立库存吗？`)) return;
-      herbs = importedItems;
-    } else {
-      let added = 0, updated = 0;
-      importedItems.forEach(item => {
-        let existing = herbs.find(h => h.name === item.name);
-        if (existing) {
-          existing.stock = item.stock;
-          if (item.box && item.box !== "-") existing.box = item.box;
-          updated++;
-        } else {
-          herbs.push(item);
-          added++;
-        }
-      });
-      alert(`导入完成：更新了 ${updated} 项，新添加了 ${added} 项。`);
-    }
-
-    persist();
-    document.getElementById('importText').value = '';
-    toggleImportPanel();
-  }
-
-  function handleFileImport(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      const tokens = splitIntoItems(evt.target.result);
-      let loaded = [];
-      tokens.forEach(tok => {
-        const res = parseHerbEntry(tok);
-        if (res && res.name) {
-          loaded.push({ box: res.box || "-", name: res.name, stock: res.val });
-        }
-      });
-      if (loaded.length > 0) {
-        if (confirm(`从文件中识别到 ${loaded.length} 项药材，是否替换当前全部库存？`)) {
-          herbs = loaded;
-          persist();
-          toggleImportPanel();
-        }
-      }
-    };
-    reader.readAsText(file);
   }
 
   function runBatch() {
@@ -621,7 +523,7 @@
     grid.innerHTML = '';
 
     if (herbs.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2.5rem 1rem; color:#888;">当前库存为空。<br/>请点击上方“<strong>📥 导入数据</strong>”直接粘贴 Excel 录入。</div>';
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2.5rem 1rem; color:#888;">当前库存为空。<br/>请切换到上方【<strong>进货入库</strong>】模式，直接粘贴 Excel 数据建库。</div>';
       return;
     }
 
@@ -664,7 +566,7 @@
       const boxText = hasBox ? `📦 ${h.box}号箱` : '📦 待分箱';
       const boxClass = hasBox ? 'badge-box' : 'badge-box unassigned';
 
-      // 卡片顶部：去掉了改箱按钮，直接点击箱号标签触发修改
+      // 卡片顶部：直接点击箱号标签触发修改
       card.innerHTML = `
         <div>
           <div class="card-top">
@@ -684,25 +586,6 @@
       `;
       grid.appendChild(card);
     });
-  }
-
-  function exportCSV() {
-    let csv = "\uFEFF箱号,药材名称,当前库存(g),状态\n";
-    herbs.forEach(h => {
-      let status = "正常";
-      if (h.stock === 0) status = "缺药";
-      else if (h.stock <= STOCK_ALERT_LIMIT) status = "不足";
-      csv += `"${h.box || '-'}","${h.name}",${h.stock},"${status}"\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `中药库存与箱号_${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   function exportTXT() {
@@ -742,7 +625,12 @@
   searchInput.addEventListener('compositionend', render);
   searchInput.addEventListener('keyup', render);
 
-  setMode('deduct');
+  // 默认启动模式：若库存为空进入进货/建库，若已有数据进入划药扣减
+  if (herbs.length === 0) {
+    setMode('restock');
+  } else {
+    setMode('deduct');
+  }
   render();
 </script>
 </body>
