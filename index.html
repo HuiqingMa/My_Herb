@@ -107,7 +107,7 @@
     .btn-import { background: var(--import); }
     .btn-danger { background: var(--danger); color: white; }
 
-    /* 工具栏布局 */
+    /* 主工具栏 */
     .search-row {
       display: flex;
       gap: 6px;
@@ -156,7 +156,7 @@
       font-size: 0.85rem;
       white-space: nowrap;
     }
-    /* 醒目的全清空红按钮 */
+    /* 显眼的红色全部清空按钮 */
     .search-row button.action-btn.danger-btn-main {
       background: var(--danger);
       color: #ffffff;
@@ -196,7 +196,7 @@
     .card-top {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       margin-bottom: 4px;
     }
     .herb-name { 
@@ -212,35 +212,32 @@
       gap: 4px;
       flex-shrink: 0;
     }
+
+    /* 直接点击修改箱号的标签样式 */
     .badge-box {
       font-size: 0.75rem;
       background: #e3f2fd;
       color: #1976d2;
-      padding: 2px 6px;
+      padding: 3px 6px;
       border-radius: 4px;
       font-weight: 600;
       white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .badge-box:hover {
+      background: #bbdefb;
+      border-color: #90caf9;
+    }
+    .badge-box:active {
+      transform: scale(0.96);
     }
     .badge-box.unassigned {
       background: #f1f3f5;
       color: #868e96;
-    }
-
-    /* 独立改箱号按钮 */
-    .btn-edit-box {
-      font-size: 0.72rem;
-      background: #e9ecef;
-      color: #495057;
-      border: 1px solid #ced4da;
-      padding: 1px 5px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 600;
-      line-height: 1.3;
-    }
-    .btn-edit-box:hover {
-      background: #dee2e6;
-      color: #212529;
+      border: 1px dashed #ced4da;
     }
 
     .herb-stock { font-size: 1.25rem; font-weight: 800; color: var(--primary); margin: 4px 0; }
@@ -273,13 +270,14 @@
       background: #e9ecef;
       color: #333;
     }
+    .quick-row button:active { background: #dee2e6; }
   </style>
 </head>
 <body>
 <div class="container">
   <header>
     <h1>🌿 中药日常库存与箱位管理</h1>
-    <p>每日划药扣减 · 箱位智能同步 · 低于 50g 自动预警</p>
+    <p>每日划药扣减 · 直接点击箱号即可修改 · 低于 50g 自动预警</p>
   </header>
 
   <!-- 每日扣减/入库面板 -->
@@ -292,7 +290,6 @@
       </div>
     </div>
     
-    <!-- 动态格式提示条 -->
     <div class="hint-bar" id="modeHint">
       💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>
     </div>
@@ -327,7 +324,7 @@
     </div>
   </section>
 
-  <!-- 主工具栏：醒目的红色全清空按钮直接放置在最前侧 -->
+  <!-- 主工具栏：红色清空按钮排在最前 -->
   <div class="search-row">
     <div class="search-wrapper">
       <input 
@@ -361,13 +358,13 @@
     render();
   }
 
-  // 独立修改箱号方法：通过弹窗修改
+  // 直接点击箱号修改
   function changeHerbBox(herbName) {
     const target = herbs.find(h => h.name === herbName);
     if (!target) return;
 
     const currentBox = (target.box && target.box !== '-') ? target.box : '';
-    const newBox = prompt(`修改【${target.name}】的箱号：\n（输入箱号数字，或留空/填 - 取消箱号）`, currentBox);
+    const newBox = prompt(`修改【${target.name}】的箱号：\n（直接输入箱号数字，或留空/填 - 清除箱号）`, currentBox);
 
     if (newBox !== null) {
       const cleanBox = newBox.trim();
@@ -376,7 +373,7 @@
     }
   }
 
-  // 彻底清空所有库存数据
+  // 全部清空库存
   function clearAllData() {
     if (herbs.length === 0) {
       alert("当前数据库已经是空的！");
@@ -390,7 +387,6 @@
       document.getElementById('logOutput').style.display = 'none';
       render();
 
-      // 自动弹出导入面板方便重新录入
       const panel = document.getElementById('importPanel');
       panel.style.display = 'block';
       const importBox = document.getElementById('importText');
@@ -427,7 +423,7 @@
       hint.style.borderLeftColor = 'var(--restock)';
       hint.innerHTML = '💡 <strong>进货格式：</strong><br/>' +
         '• <strong>已有药材（保持原箱号）</strong>：直接输入 <code>茯苓 200g, 柴胡 100</code><br/>' +
-        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或点击卡片上的【✎ 改箱】独立修改）';
+        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或直接点击下方卡片的箱号进行修改）';
       document.getElementById('batchText').placeholder = '例如输入：\n8号箱 丹参 250g, 茯苓 200, 2号 黄芪 300';
     }
   }
@@ -668,14 +664,13 @@
       const boxText = hasBox ? `📦 ${h.box}号箱` : '📦 待分箱';
       const boxClass = hasBox ? 'badge-box' : 'badge-box unassigned';
 
-      // 卡片顶部：左侧药名，右侧显示箱号 + 独立修改箱号按钮 + 缺药标签
+      // 卡片顶部：直接给箱号标签绑定点击修改事件
       card.innerHTML = `
         <div>
           <div class="card-top">
             <span class="herb-name">${h.name}</span>
             <div class="card-badges">
-              <span class="${boxClass}">${boxText}</span>
-              <button class="btn-edit-box" onclick="changeHerbBox('${h.name}')" title="修改箱号">✎ 改箱</button>
+              <span class="${boxClass}" onclick="changeHerbBox('${h.name}')" title="点击直接修改箱号">${boxText}</span>
               ${tag}
             </div>
           </div>
