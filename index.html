@@ -85,7 +85,7 @@
       border: 1px solid #ced4da;
       border-radius: 8px;
       padding: 8px;
-      font-size: 16px; /* 防止 iOS 聚焦放大 */
+      font-size: 16px; /* 防止 iOS 聚焦放大页面 */
       font-family: inherit;
     }
     .btn-group {
@@ -156,7 +156,7 @@
       font-size: 0.85rem;
       white-space: nowrap;
     }
-    /* 显眼的红色全部清空按钮 */
+    /* 显眼的红色全清空按钮 */
     .search-row button.action-btn.danger-btn-main {
       background: var(--danger);
       color: #ffffff;
@@ -224,7 +224,7 @@
       white-space: nowrap;
       cursor: pointer;
       user-select: none;
-      border: 1px solid transparent;
+      border: 1px solid #bbdefb;
       transition: all 0.15s ease;
     }
     .badge-box:hover {
@@ -423,7 +423,7 @@
       hint.style.borderLeftColor = 'var(--restock)';
       hint.innerHTML = '💡 <strong>进货格式：</strong><br/>' +
         '• <strong>已有药材（保持原箱号）</strong>：直接输入 <code>茯苓 200g, 柴胡 100</code><br/>' +
-        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或直接点击下方卡片的箱号进行修改）';
+        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或直接点击下方卡片上的箱号修改）';
       document.getElementById('batchText').placeholder = '例如输入：\n8号箱 丹参 250g, 茯苓 200, 2号 黄芪 300';
     }
   }
@@ -664,7 +664,7 @@
       const boxText = hasBox ? `📦 ${h.box}号箱` : '📦 待分箱';
       const boxClass = hasBox ? 'badge-box' : 'badge-box unassigned';
 
-      // 卡片顶部：直接给箱号标签绑定点击修改事件
+      // 卡片顶部：去掉了改箱按钮，直接点击箱号标签触发修改
       card.innerHTML = `
         <div>
           <div class="card-top">
