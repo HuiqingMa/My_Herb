@@ -85,9 +85,8 @@
       border: 1px solid #ced4da;
       border-radius: 8px;
       padding: 8px;
-      font-size: 16px; /* 防止 iOS Safari 聚焦时页面放大 */
+      font-size: 16px; /* 防止 iOS 聚焦放大 */
       font-family: inherit;
-      resize: vertical;
     }
     .btn-group {
       display: flex;
@@ -108,6 +107,7 @@
     .btn-import { background: var(--import); }
     .btn-danger { background: var(--danger); color: white; }
 
+    /* 工具栏布局 */
     .search-row {
       display: flex;
       gap: 6px;
@@ -127,7 +127,7 @@
       padding: 9px 34px 9px 12px;
       border: 1px solid #ced4da;
       border-radius: 8px;
-      font-size: 16px; /* 规避 iOS 自动缩放 */
+      font-size: 16px;
       outline: none;
     }
     .search-wrapper input:focus {
@@ -156,10 +156,12 @@
       font-size: 0.85rem;
       white-space: nowrap;
     }
-    .search-row button.action-btn.danger-btn {
-      background: #ffe3e3;
-      color: var(--danger);
-      border-color: #ffa8a8;
+    /* 醒目的全清空红按钮 */
+    .search-row button.action-btn.danger-btn-main {
+      background: var(--danger);
+      color: #ffffff;
+      border-color: var(--danger);
+      font-weight: 700;
     }
 
     .log-box {
@@ -176,7 +178,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
       gap: 8px;
     }
     .card {
@@ -187,14 +189,29 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: border-color 0.2s, background-color 0.2s;
     }
     .card.empty { border-color: #ffb703; background: #fffdf5; }
     .card.low { border-color: var(--danger); background: #fff5f5; }
-    .herb-name { font-size: 1.05rem; font-weight: 700; color: #111; word-break: break-all; }
-    .herb-stock { font-size: 1.25rem; font-weight: 800; color: var(--primary); margin: 4px 0; }
-    .card.empty .herb-stock, .card.low .herb-stock { color: var(--danger); }
     
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .herb-name { 
+      font-size: 1.05rem; 
+      font-weight: 700; 
+      color: #111; 
+      word-break: break-all;
+      line-height: 1.2;
+    }
+    .card-badges {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
     .badge-box {
       font-size: 0.75rem;
       background: #e3f2fd;
@@ -203,18 +220,33 @@
       border-radius: 4px;
       font-weight: 600;
       white-space: nowrap;
-      cursor: pointer;
-      border: 1px dashed #90caf9;
-      user-select: none;
     }
-    .badge-box:active { background: #bbdefb; }
     .badge-box.unassigned {
       background: #f1f3f5;
       color: #868e96;
-      border-color: #ced4da;
     }
 
-    .badge { font-size: 0.75rem; font-weight: 600; padding: 2px 4px; border-radius: 4px; margin-left: 4px; }
+    /* 独立改箱号按钮 */
+    .btn-edit-box {
+      font-size: 0.72rem;
+      background: #e9ecef;
+      color: #495057;
+      border: 1px solid #ced4da;
+      padding: 1px 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .btn-edit-box:hover {
+      background: #dee2e6;
+      color: #212529;
+    }
+
+    .herb-stock { font-size: 1.25rem; font-weight: 800; color: var(--primary); margin: 4px 0; }
+    .card.empty .herb-stock, .card.low .herb-stock { color: var(--danger); }
+
+    .badge { font-size: 0.75rem; font-weight: 600; padding: 2px 4px; border-radius: 4px; }
     .badge-empty { background: #ffe3e3; color: #c92a2a; }
     .badge-low { background: #fff3bf; color: #d9480f; }
 
@@ -224,7 +256,7 @@
       margin-top: 6px;
     }
     .quick-row input {
-      width: 60px;
+      width: 55px;
       padding: 4px;
       font-size: 14px;
       border: 1px solid #ced4da;
@@ -232,7 +264,7 @@
     }
     .quick-row button {
       flex: 1;
-      padding: 6px 4px;
+      padding: 5px 4px;
       border: none;
       border-radius: 4px;
       font-size: 0.8rem;
@@ -241,14 +273,13 @@
       background: #e9ecef;
       color: #333;
     }
-    .quick-row button:active { background: #dee2e6; }
   </style>
 </head>
 <body>
 <div class="container">
   <header>
     <h1>🌿 中药日常库存与箱位管理</h1>
-    <p>每日划药扣减 · 箱位精准检索 · 点箱位可直接修改</p>
+    <p>每日划药扣减 · 箱位智能同步 · 低于 50g 自动预警</p>
   </header>
 
   <!-- 每日扣减/入库面板 -->
@@ -261,6 +292,7 @@
       </div>
     </div>
     
+    <!-- 动态格式提示条 -->
     <div class="hint-bar" id="modeHint">
       💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>
     </div>
@@ -295,7 +327,7 @@
     </div>
   </section>
 
-  <!-- 工具栏 -->
+  <!-- 主工具栏：醒目的红色全清空按钮直接放置在最前侧 -->
   <div class="search-row">
     <div class="search-wrapper">
       <input 
@@ -309,8 +341,8 @@
       />
       <button class="clear-search" id="clearBtn" onclick="clearSearch()">✕</button>
     </div>
+    <button class="action-btn danger-btn-main" onclick="clearAllData()">🗑️ 全部清空</button>
     <button class="action-btn" onclick="toggleImportPanel()">📥 导入数据</button>
-    <button class="action-btn danger-btn" onclick="clearAllData()">🗑 全部清空</button>
     <button class="action-btn" onclick="exportCSV()">导出备份</button>
     <button class="action-btn" onclick="exportTXT()">导出 TXT</button>
   </div>
@@ -329,12 +361,13 @@
     render();
   }
 
+  // 独立修改箱号方法：通过弹窗修改
   function changeHerbBox(herbName) {
     const target = herbs.find(h => h.name === herbName);
     if (!target) return;
 
     const currentBox = (target.box && target.box !== '-') ? target.box : '';
-    const newBox = prompt(`请输入【${target.name}】的新存放箱号（留空或填 - 表示未分箱）：`, currentBox);
+    const newBox = prompt(`修改【${target.name}】的箱号：\n（输入箱号数字，或留空/填 - 取消箱号）`, currentBox);
 
     if (newBox !== null) {
       const cleanBox = newBox.trim();
@@ -343,12 +376,13 @@
     }
   }
 
+  // 彻底清空所有库存数据
   function clearAllData() {
     if (herbs.length === 0) {
       alert("当前数据库已经是空的！");
       return;
     }
-    const confirmed = confirm("⚠ 确定要彻底清空当前所有的中药库存吗？\n清空后不可撤销（建议先点击“导出备份”保存一份）。");
+    const confirmed = confirm("⚠ 警告：确定要彻底清空当前所有的中药库存吗？\n清空后不可恢复（建议先点击“导出备份”保存一份）。");
     if (confirmed) {
       herbs = [];
       localStorage.removeItem('tcm_inventory');
@@ -356,6 +390,7 @@
       document.getElementById('logOutput').style.display = 'none';
       render();
 
+      // 自动弹出导入面板方便重新录入
       const panel = document.getElementById('importPanel');
       panel.style.display = 'block';
       const importBox = document.getElementById('importText');
@@ -382,7 +417,7 @@
       document.getElementById('submitBtn').textContent = '执行扣减';
       document.getElementById('submitBtn').style.background = 'var(--accent)';
       hint.style.borderLeftColor = 'var(--accent)';
-      hint.innerHTML = '💡 <strong>划药格式：</strong>药名+克数（逗号或换行隔开均可）<br/>示例：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>';
+      hint.innerHTML = '💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>';
       document.getElementById('batchText').placeholder = '例如输入：\n龙骨15, 牡蛎20g, 白芍10, 炙甘草6';
     } else {
       document.getElementById('batchTitle').textContent = '📦 进货入库 (自动同步箱号)';
@@ -391,8 +426,8 @@
       document.getElementById('submitBtn').style.background = 'var(--restock)';
       hint.style.borderLeftColor = 'var(--restock)';
       hint.innerHTML = '💡 <strong>进货格式：</strong><br/>' +
-        '• <strong>已有药材（保留原箱号）</strong>：直接输入 <code>茯苓 200g, 柴胡 100</code><br/>' +
-        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或点击下方卡片箱号直接修改）';
+        '• <strong>已有药材（保持原箱号）</strong>：直接输入 <code>茯苓 200g, 柴胡 100</code><br/>' +
+        '• <strong>新药或更换箱号</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或点击卡片上的【✎ 改箱】独立修改）';
       document.getElementById('batchText').placeholder = '例如输入：\n8号箱 丹参 250g, 茯苓 200, 2号 黄芪 300';
     }
   }
@@ -632,13 +667,17 @@
       const hasBox = h.box && h.box !== '-';
       const boxText = hasBox ? `📦 ${h.box}号箱` : '📦 待分箱';
       const boxClass = hasBox ? 'badge-box' : 'badge-box unassigned';
-      const boxBadge = `<span class="${boxClass}" onclick="changeHerbBox('${h.name}')" title="点击修改箱号">${boxText} ✎</span>`;
 
+      // 卡片顶部：左侧药名，右侧显示箱号 + 独立修改箱号按钮 + 缺药标签
       card.innerHTML = `
         <div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="card-top">
             <span class="herb-name">${h.name}</span>
-            <div>${boxBadge}${tag}</div>
+            <div class="card-badges">
+              <span class="${boxClass}">${boxText}</span>
+              <button class="btn-edit-box" onclick="changeHerbBox('${h.name}')" title="修改箱号">✎ 改箱</button>
+              ${tag}
+            </div>
           </div>
           <div class="herb-stock">${h.stock} <small style="font-size:0.8rem; font-weight:normal;">g</small></div>
         </div>
