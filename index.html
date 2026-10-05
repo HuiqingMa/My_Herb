@@ -65,7 +65,7 @@
 
     textarea {
       width: 100%;
-      height: 100px;
+      height: 105px;
       border: 1px solid #ced4da;
       border-radius: 8px;
       padding: 8px;
@@ -147,7 +147,7 @@
       margin-top: 8px;
       font-size: 0.85rem;
       display: none;
-      max-height: 140px;
+      max-height: 150px;
       overflow-y: auto;
     }
 
@@ -213,7 +213,7 @@
 <div class="container">
   <header>
     <h1>🌿 中药日常库存与箱位管理</h1>
-    <p>每日划药扣减 · 箱位精准检索 · 库存预警线: 50g</p>
+    <p>每日划药扣减 · 箱位智能同步 · 低于 50g 自动预警</p>
   </header>
 
   <!-- 每日扣减/入库面板 -->
@@ -225,7 +225,7 @@
         <button id="mRestock" class="mode-btn" onclick="setMode('restock')">进货入库 (+)</button>
       </div>
     </div>
-    <textarea id="batchText" placeholder="支持任意格式，例如连成一行：&#10;龙骨15, 牡蛎20g, 白芍10, 炙甘草6&#10;提交后会自动提示对应的存放箱号"></textarea>
+    <textarea id="batchText" placeholder="支持任意格式，例如连成一行：&#10;龙骨15, 牡蛎20g, 白芍10, 炙甘草6"></textarea>
     <div class="btn-group">
       <button class="btn btn-primary" id="submitBtn" onclick="runBatch()">执行扣减</button>
       <button class="btn btn-secondary" onclick="document.getElementById('batchText').value=''">清空</button>
@@ -236,12 +236,12 @@
   <!-- 自主导入面板 (支持3列粘贴: Box, Name, Weight) -->
   <section class="panel" id="importPanel" style="display:none; border: 2px solid var(--import);">
     <div class="panel-header">
-      <strong style="color: var(--import);">📥 自主导入 / 重新设置库存与箱号</strong>
+      <strong style="color: var(--import);">📥 初次建库 / 批量更新数据</strong>
       <button onclick="toggleImportPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.1rem; font-weight:bold;">✕</button>
     </div>
     <p style="font-size:0.82rem; color:#555; margin: 0 0 8px 0; line-height: 1.4;">
-      <strong>直接从 Excel 复制 3 列粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
-      统一默认警戒线为 50g，无需单独导入预警列。<br/>
+      <strong>Excel 3 列复制粘贴：</strong><code>Box</code> | <code>Herb Name</code> | <code>Weight(g)</code><br/>
+      统一默认预警值为 50g，初次使用请点击【全部清空并重新导入】。<br/>
       示例格式：<code>1 龙骨 450</code> 或 <code>6 茯苓 256</code>
     </p>
     <textarea id="importText" style="height:140px;" placeholder="直接粘贴 Excel 选中的 3 列：&#10;1  龙骨  450&#10;1  牡蛎  860&#10;6  茯苓  256&#10;4  北柴胡  80"></textarea>
@@ -278,7 +278,7 @@
 </div>
 
 <script>
-  // 全局统一警戒线：50克
+  // 全局统一库存警戒线：50克
   const STOCK_ALERT_LIMIT = 50;
 
   let mode = 'deduct';
@@ -299,58 +299,69 @@
     const isDeduct = m === 'deduct';
     document.getElementById('mDeduct').className = `mode-btn ${isDeduct ? 'active-deduct' : ''}`;
     document.getElementById('mRestock').className = `mode-btn ${!isDeduct ? 'active-restock' : ''}`;
-    document.getElementById('batchTitle').textContent = isDeduct ? '⚡ 每日划药扣减 (支持连行逗号隔开)' : '📦 进货入库 (增加克重)';
-    document.getElementById('batchTitle').style.color = isDeduct ? 'var(--accent)' : 'var(--restock)';
-    document.getElementById('submitBtn').textContent = isDeduct ? '执行扣减' : '确认入库';
-    document.getElementById('submitBtn').style.background = isDeduct ? 'var(--accent)' : 'var(--restock)';
+    
+    if (isDeduct) {
+      document.getElementById('batchTitle').textContent = '⚡ 每日划药扣减 (支持连行逗号隔开)';
+      document.getElementById('batchTitle').style.color = 'var(--accent)';
+      document.getElementById('submitBtn').textContent = '执行扣减';
+      document.getElementById('submitBtn').style.background = 'var(--accent)';
+      document.getElementById('batchText').placeholder = '例如连成一行：\n龙骨15, 牡蛎20g, 白芍10, 炙甘草6';
+    } else {
+      document.getElementById('batchTitle').textContent = '📦 进货入库 (可直接录入新药及箱号)';
+      document.getElementById('batchTitle').style.color = 'var(--restock)';
+      document.getElementById('submitBtn').textContent = '确认入库/新增';
+      document.getElementById('submitBtn').style.background = 'var(--restock)';
+      document.getElementById('batchText').placeholder = '支持录入箱号，例如：\n8号箱 丹参 200g, 2号 黄芪 300\n或已有的药直接输入：茯苓 100g';
+    }
   }
 
   function splitIntoItems(rawText) {
     if (!rawText) return [];
     return rawText
+      .replace(/\u00A0/g, ' ') // 替换不可见的不换行空格
       .split(/[\n\r,，、;；]+/g)
       .map(item => item.trim())
       .filter(item => item.length > 0);
   }
 
-  function parseImportToken(token) {
+  // 统一智能解析：可同时提取 箱号、药名、克数
+  function parseHerbEntry(token) {
     let clean = token.trim();
     if (!clean) return null;
     if (/^(box|herb|药材|箱号|品名|重量|weight|stock|库存)/i.test(clean)) return null;
 
-    clean = clean.replace(/[\t,，:：\-—]+/g, ' ').replace(/\s+/g, ' ').trim();
+    let detectedBox = null;
+
+    // 1. 优先提取显式箱号，如 "8号箱"、"8号"、"(8号)"、"Box 8"
+    const boxMatch = clean.match(/(?:box\s*|箱\s*)?(\d+|[a-zA-Z]+)(?:号箱|号|\b箱)/i);
+    if (boxMatch) {
+      detectedBox = boxMatch[1];
+      clean = clean.replace(boxMatch[0], ' ');
+    }
+
+    clean = clean.replace(/[\t:：\-—\(\)（）]+/g, ' ').replace(/\s+/g, ' ').trim();
     const parts = clean.split(' ');
 
-    if (parts.length >= 3) {
+    if (parts.length >= 3 && !detectedBox) {
+      // 形式：1 龙骨 450
       const box = parts[0].trim();
       const name = parts[1].trim();
       const numMatch = parts[2].match(/^(\d+(?:\.\d+)?)/);
       const val = numMatch ? parseFloat(numMatch[1]) : 0;
       if (name) return { box, name, val };
-    } else if (parts.length === 2) {
-      if (/^\d+$/.test(parts[0])) {
-        return { box: parts[0], name: parts[1], val: 0 };
-      } else {
-        const numMatch = parts[1].match(/^(\d+(?:\.\d+)?)/);
-        const val = numMatch ? parseFloat(numMatch[1]) : 0;
-        return { box: "-", name: parts[0], val };
+    } else if (parts.length >= 2) {
+      const last = parts[parts.length - 1];
+      const numMatch = last.match(/^(\d+(?:\.\d+)?)(?:g|克|oz)?$/i);
+      if (numMatch) {
+        const val = parseFloat(numMatch[1]);
+        const name = parts.slice(0, parts.length - 1).join('').replace(/[0-9g克oz]/gi, '').trim();
+        return { box: detectedBox, name, val };
       }
     } else if (parts.length === 1) {
-      const name = parts[0].replace(/[0-9g克oz]/gi, '').trim();
-      if (name) return { box: "-", name, val: 0 };
-    }
-    return null;
-  }
-
-  function parseDeductToken(token) {
-    let clean = token.trim();
-    if (!clean) return null;
-    clean = clean.replace(/[:：\-—]+/g, ' ').trim();
-    const m = clean.match(/^([\u4e00-\u9fa5a-zA-Z\(\)（）\s]+?)\s*(\d+(?:\.\d+)?)\s*(?:g|克|oz)?$/i);
-    if (m) {
-      const name = m[1].replace(/\s+/g, '');
-      const val = parseFloat(m[2]);
-      if (name && !isNaN(val)) return { name, val };
+      const m = clean.match(/^([\u4e00-\u9fa5a-zA-Z]+?)\s*(\d+(?:\.\d+)?)\s*(?:g|克|oz)?$/i);
+      if (m) {
+        return { box: detectedBox, name: m[1], val: parseFloat(m[2]) };
+      }
     }
     return null;
   }
@@ -361,9 +372,9 @@
     let importedItems = [];
 
     tokens.forEach(tok => {
-      const res = parseImportToken(tok);
+      const res = parseHerbEntry(tok);
       if (res && res.name) {
-        importedItems.push({ box: res.box, name: res.name, stock: res.val });
+        importedItems.push({ box: res.box || "-", name: res.name, stock: res.val });
       }
     });
 
@@ -381,7 +392,7 @@
         let existing = herbs.find(h => h.name === item.name);
         if (existing) {
           existing.stock = item.stock;
-          if (item.box !== "-") existing.box = item.box;
+          if (item.box && item.box !== "-") existing.box = item.box;
           updated++;
         } else {
           herbs.push(item);
@@ -404,9 +415,9 @@
       const tokens = splitIntoItems(evt.target.result);
       let loaded = [];
       tokens.forEach(tok => {
-        const res = parseImportToken(tok);
+        const res = parseHerbEntry(tok);
         if (res && res.name) {
-          loaded.push({ box: res.box, name: res.name, stock: res.val });
+          loaded.push({ box: res.box || "-", name: res.name, stock: res.val });
         }
       });
       if (loaded.length > 0) {
@@ -429,12 +440,15 @@
     let logs = [];
 
     tokens.forEach(tok => {
-      const parsed = parseDeductToken(tok);
+      const parsed = parseHerbEntry(tok);
       if (!parsed || parsed.val === 0) return;
 
       let target = herbs.find(h => h.name === parsed.name) || herbs.find(h => h.name.includes(parsed.name));
 
       if (target) {
+        // 如果进货时输入了新箱号，同步更新箱位
+        if (parsed.box) target.box = parsed.box;
+
         const boxInfo = target.box && target.box !== '-' ? ` [${target.box}号箱]` : '';
         if (mode === 'deduct') {
           target.stock = Math.max(0, target.stock - parsed.val);
@@ -446,8 +460,10 @@
         matchedCount++;
       } else {
         if (mode === 'restock') {
-          herbs.push({ box: "-", name: parsed.name, stock: parsed.val });
-          logs.push(`✨ 新增药材【${parsed.name}】+${parsed.val}g`);
+          const newBox = parsed.box || "-";
+          herbs.push({ box: newBox, name: parsed.name, stock: parsed.val });
+          const boxDesc = newBox !== '-' ? ` [${newBox}号箱]` : '';
+          logs.push(`✨ 新增药材【${parsed.name}】+${parsed.val}g <strong>${boxDesc}</strong>`);
           matchedCount++;
         } else {
           notFound.push(`未匹配: ${tok}`);
