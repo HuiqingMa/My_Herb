@@ -41,11 +41,14 @@
       margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .panel-header {
+    
+    /* 顶部按钮栏：扣减、进货、清空在一行 */
+    .top-action-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
     .mode-switch {
       display: flex;
@@ -55,7 +58,7 @@
     }
     .mode-btn {
       border: none;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
       font-size: 0.85rem;
       font-weight: 600;
@@ -67,26 +70,39 @@
     .mode-btn.active-deduct { background: var(--danger); color: white; }
     .mode-btn.active-restock { background: var(--restock); color: white; }
 
-    .hint-bar {
-      background: #f8f9fa;
-      border-left: 3px solid var(--accent);
-      padding: 6px 10px;
-      margin-bottom: 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      color: #555;
-      line-height: 1.4;
+    .btn-clear-all {
+      border: none;
+      background: #ffe3e3;
+      color: var(--danger);
+      border: 1px solid #ffa8a8;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-clear-all:active {
+      background: var(--danger);
+      color: white;
     }
 
     textarea {
       width: 100%;
-      height: 120px;
+      height: 125px;
       border: 1px solid #ced4da;
       border-radius: 8px;
-      padding: 8px;
-      font-size: 16px; /* 防止 iOS 聚焦放大 */
+      padding: 10px;
+      font-size: 15px; /* 规避 iOS 聚焦放大 */
       font-family: inherit;
+      color: #212529;
     }
+    textarea::placeholder {
+      color: #8c98a4;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
     .btn-group {
       display: flex;
       gap: 8px;
@@ -98,24 +114,19 @@
       border-radius: 8px;
       color: white;
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       cursor: pointer;
     }
     .btn-primary { background: var(--accent); flex: 1; }
     .btn-secondary { background: #6c757d; }
+    .btn-export { background: #495057; }
 
-    /* 主工具栏 */
+    /* 搜索栏 */
     .search-row {
-      display: flex;
-      gap: 6px;
       margin-bottom: 12px;
-      align-items: center;
-      flex-wrap: wrap;
     }
     .search-wrapper {
       position: relative;
-      flex: 1;
-      min-width: 180px;
       display: flex;
       align-items: center;
     }
@@ -124,7 +135,7 @@
       padding: 9px 34px 9px 12px;
       border: 1px solid #ced4da;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       outline: none;
     }
     .search-wrapper input:focus {
@@ -141,23 +152,6 @@
       cursor: pointer;
       padding: 4px;
       display: none;
-    }
-    .search-row button.action-btn {
-      padding: 9px 12px;
-      border: 1px solid #ced4da;
-      background: white;
-      border-radius: 8px;
-      font-weight: 600;
-      color: #495057;
-      cursor: pointer;
-      font-size: 0.85rem;
-      white-space: nowrap;
-    }
-    .search-row button.action-btn.danger-btn-main {
-      background: var(--danger);
-      color: #ffffff;
-      border-color: var(--danger);
-      font-weight: 700;
     }
 
     .log-box {
@@ -278,33 +272,34 @@
 
   <!-- 每日扣减/进货建库面板 -->
   <section class="panel">
-    <div class="panel-header">
-      <strong id="batchTitle" style="color: var(--accent);">⚡ 每日划药扣减 (支持连行逗号隔开)</strong>
+    <!-- 进货、扣减与全部清空在同一行 -->
+    <div class="top-action-bar">
       <div class="mode-switch">
         <button id="mDeduct" class="mode-btn active-deduct" onclick="setMode('deduct')">使用扣减 (-)</button>
         <button id="mRestock" class="mode-btn" onclick="setMode('restock')">进货入库 (+)</button>
       </div>
-    </div>
-    
-    <div class="hint-bar" id="modeHint">
-      💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>
+      <button class="btn-clear-all" onclick="clearAllData()">🗑️️ 全部清空数据</button>
     </div>
 
-    <textarea id="batchText" placeholder="在此粘贴或输入处方..."></textarea>
+    <!-- 格式提示以内置浅灰占位文字（placeholder）形式呈现 -->
+    <textarea id="batchText"></textarea>
+
+    <!-- 底部按钮栏：提交、清空输入框、导出TXT -->
     <div class="btn-group">
       <button class="btn btn-primary" id="submitBtn" onclick="runBatch()">执行扣减</button>
       <button class="btn btn-secondary" onclick="document.getElementById('batchText').value=''">清空输入框</button>
+      <button class="btn btn-export" onclick="exportTXT()">导出 TXT</button>
     </div>
     <div id="logOutput" class="log-box"></div>
   </section>
 
-  <!-- 主工具栏：仅保留全部清空与导出TXT -->
+  <!-- 搜索栏：支持药名和箱号搜索 -->
   <div class="search-row">
     <div class="search-wrapper">
       <input 
         type="text" 
         id="filterInput" 
-        placeholder="搜索药材名称 或 输入箱号(如: 1)..." 
+        placeholder="搜索药名 (如: 茯苓) 或 输入箱号 (如: 1 或 1号)..." 
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"
@@ -312,8 +307,6 @@
       />
       <button class="clear-search" id="clearBtn" onclick="clearSearch()">✕</button>
     </div>
-    <button class="action-btn danger-btn-main" onclick="clearAllData()">🗑️ 全部清空数据</button>
-    <button class="action-btn" onclick="exportTXT()">导出 TXT</button>
   </div>
 
   <!-- 药材卡片列表 -->
@@ -357,7 +350,7 @@
       localStorage.removeItem('tcm_inventory');
       document.getElementById('batchText').value = '';
       document.getElementById('logOutput').style.display = 'none';
-      setMode('restock'); // 自动切换到进货模式，方便直接粘贴录入建库
+      setMode('restock'); // 自动切换到进货模式
       render();
       alert("✅ 已清空全部库存！已自动为你切换到【进货入库】模式，可直接粘贴 Excel 数据建库。");
     }
@@ -369,26 +362,17 @@
     document.getElementById('mDeduct').className = `mode-btn ${isDeduct ? 'active-deduct' : ''}`;
     document.getElementById('mRestock').className = `mode-btn ${!isDeduct ? 'active-restock' : ''}`;
     
-    const hint = document.getElementById('modeHint');
+    const submitBtn = document.getElementById('submitBtn');
+    const textArea = document.getElementById('batchText');
+
     if (isDeduct) {
-      document.getElementById('batchTitle').textContent = '⚡ 每日划药扣减 (支持连行逗号隔开)';
-      document.getElementById('batchTitle').style.color = 'var(--accent)';
-      document.getElementById('submitBtn').textContent = '执行扣减';
-      document.getElementById('submitBtn').style.background = 'var(--accent)';
-      hint.style.borderLeftColor = 'var(--accent)';
-      hint.innerHTML = '💡 <strong>划药格式：</strong>药名+克数（支持逗号或换行），例如：<code>龙骨15, 牡蛎20g, 白芍10, 炙甘草6</code>';
-      document.getElementById('batchText').placeholder = '例如输入：\n龙骨15, 牡蛎20g, 白芍10, 炙甘草6';
+      submitBtn.textContent = '执行扣减';
+      submitBtn.style.background = 'var(--accent)';
+      textArea.placeholder = "【划药扣减格式】\n药名+克数（支持逗号或换行），例如：\n龙骨15, 牡蛎20g, 白芍10, 炙甘草6";
     } else {
-      document.getElementById('batchTitle').textContent = '📦 进货入库 / 录入建库 (自动识别箱号)';
-      document.getElementById('batchTitle').style.color = 'var(--restock)';
-      document.getElementById('submitBtn').textContent = '确认入库/增加';
-      document.getElementById('submitBtn').style.background = 'var(--restock)';
-      hint.style.borderLeftColor = 'var(--restock)';
-      hint.innerHTML = '💡 <strong>进货与建库输入格式：</strong><br/>' +
-        '• <strong>Excel 直接粘贴（推荐建库）</strong>：直接复制 <code>箱号  药名  克数</code> 粘贴即可<br/>' +
-        '• <strong>进货已有药材</strong>：直接写 <code>茯苓 200g, 柴胡 100</code>（保留原本箱号）<br/>' +
-        '• <strong>新药或更换箱位</strong>：带上箱号 <code>8号箱 丹参 250, 3号 黄芪 300</code>（或 <code>8 丹参 250</code>）';
-      document.getElementById('batchText').placeholder = '建库可直接粘贴 Excel 选中的 3 列：\n1  龙骨  450\n1  牡蛎  860\n6  茯苓  256\n\n或日常进货：\n8号箱 丹参 250g, 茯苓 200';
+      submitBtn.textContent = '确认入库/增加';
+      submitBtn.style.background = 'var(--restock)';
+      textArea.placeholder = "【进货与建库输入格式】\n• 初次建库：直接粘贴 Excel 选中的 3 列（箱号 药名 克数）\n  1  龙骨  450\n  1  牡蛎  860\n  6  茯苓  256\n• 已有药材进货：直接输入 茯苓 200g, 柴胡 100（保留原箱号）\n• 新药或更换箱位：带上箱号 8号箱 丹参 250, 3号 黄芪 300";
     }
   }
 
@@ -513,6 +497,7 @@
     input.focus();
   }
 
+  // 智能检索：支持药名和箱号
   function render() {
     const grid = document.getElementById('cardGrid');
     const rawQ = document.getElementById('filterInput').value;
@@ -534,6 +519,7 @@
         const boxClean = (h.box || '').toString().toLowerCase();
         const queryClean = q.replace(/\s+/g, '');
 
+        // 支持名称匹配、纯箱号匹配(如 1)、带“号”箱号匹配(如 1号)
         return herbClean.includes(queryClean) || boxClean === queryClean || (boxClean + '号') === queryClean;
       })
       .sort((a, b) => {
@@ -566,7 +552,6 @@
       const boxText = hasBox ? `📦 ${h.box}号箱` : '📦 待分箱';
       const boxClass = hasBox ? 'badge-box' : 'badge-box unassigned';
 
-      // 卡片顶部：直接点击箱号标签触发修改
       card.innerHTML = `
         <div>
           <div class="card-top">
@@ -625,7 +610,7 @@
   searchInput.addEventListener('compositionend', render);
   searchInput.addEventListener('keyup', render);
 
-  // 默认启动模式：若库存为空进入进货/建库，若已有数据进入划药扣减
+  // 初始化：若库为空进货模式，若有数据进入扣减模式
   if (herbs.length === 0) {
     setMode('restock');
   } else {
